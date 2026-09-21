@@ -1,0 +1,929 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8F0EC">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Saathi – Voice Assistant</title>
+<style>
+:root{
+  --bg:#E8F0EC; --panel:#F7FAF8; --ink:#0F2E29; --muted:#587570; --line:#C6D9D2;
+  --accent:#E9A21B; --accent-ink:#2B1B00; --user:#0F2E29; --user-ink:#F1F7F4; --danger:#B3391F;
+  box-sizing:border-box;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0B1D1A; --panel:#12292A; --ink:#E6F1EE; --muted:#8FB0AA; --line:#24443F;
+    --accent:#F0B33A; --accent-ink:#2B1B00; --user:#E6F1EE; --user-ink:#0B1D1A; --danger:#FF8A70;
+  }
+}
+*,*::before,*::after{box-sizing:inherit}
+html,body{height:100%;margin:0}
+body{
+  background:var(--bg);color:var(--ink);
+  font-family:"Noto Sans Devanagari","Noto Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-size:16px;line-height:1.5;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+.app{height:100%;max-width:640px;margin:0 auto;display:flex;flex-direction:column}
+header{display:flex;align-items:flex-start;justify-content:space-between;padding:18px 20px 8px}
+h1{margin:0;font-size:2rem;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+header p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+.icon-btn{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--ink);display:grid;place-items:center;cursor:pointer}
+button:focus-visible,#typed:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+main{flex:1;overflow-y:auto;padding:8px 20px 12px;display:flex;flex-direction:column;gap:10px}
+#empty{margin:auto 0 0}
+.lead{font-size:1.5rem;font-weight:700;line-height:1.25;margin:0 0 14px;max-width:16em}
+.tries{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.try{font:inherit;text-align:left;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:14px;padding:10px 14px;cursor:pointer}
+
+.msg{max-width:88%;padding:10px 14px;border-radius:18px;overflow-wrap:anywhere}
+.msg p{margin:0}
+.msg.user{align-self:flex-end;background:var(--user);color:var(--user-ink);border-bottom-right-radius:6px}
+.msg.bot{align-self:flex-start;background:var(--panel);border:1px solid var(--line);border-bottom-left-radius:6px}
+.who{font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:2px!important}
+.detail{margin-top:8px!important;font-size:.85rem;color:var(--muted);white-space:pre-wrap}
+.act{display:inline-block;margin-top:8px;padding:8px 14px;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-weight:700;text-decoration:none}
+button.act{font:inherit;font-weight:700;border:0;cursor:pointer}
+button.act[disabled]{opacity:.5;cursor:default}
+.act.alt{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.acts,.fb{display:flex;gap:8px;flex-wrap:wrap}
+.fb{margin-top:8px}
+.fbb{font:inherit;font-size:.85rem;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:999px;padding:3px 12px;cursor:pointer}
+.fbb[disabled]{opacity:.5;cursor:default}
+
+.bots{display:flex;gap:8px;overflow-x:auto;padding:4px 20px 8px;scrollbar-width:none;flex:none}
+.bots::-webkit-scrollbar{display:none}
+.chip{flex:none;font:inherit;font-size:.9rem;font-weight:600;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 14px;cursor:pointer;white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip.add{border-style:dashed;color:var(--muted)}
+
+.dock{padding:2px 20px 16px;text-align:center;flex:none}
+.live{min-height:1.5em;color:var(--muted);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.status{color:var(--muted);font-size:.9rem}
+.mic{position:relative;width:92px;height:92px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;cursor:pointer;margin:10px auto 14px;-webkit-tap-highlight-color:transparent}
+.mic svg{grid-area:1/1}
+.mic .ring{position:absolute;inset:0;border-radius:50%;border:2px solid var(--accent);opacity:0;pointer-events:none}
+.mic[data-mode="listening"] .ring{animation:ring 1.6s ease-out infinite}
+.mic[data-mode="listening"] .r2{animation-delay:.8s}
+@keyframes ring{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.9);opacity:0}}
+@media (prefers-reduced-motion:reduce){.mic .ring{animation:none!important}}
+.mic .i-stop{display:none}
+.mic[data-mode="speaking"] .i-mic{display:none}
+.mic[data-mode="speaking"] .i-stop{display:block}
+.mic[data-mode="thinking"]{opacity:.55}
+.mic:focus-visible{outline:3px solid var(--ink);outline-offset:4px}
+
+.typebox{display:flex;gap:8px}
+#typed{flex:1;min-width:0;font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:10px 16px}
+#send{font:inherit;font-weight:700;border:0;border-radius:999px;padding:0 18px;background:var(--ink);color:var(--bg);cursor:pointer}
+
+.sheet{position:fixed;inset:0;background:var(--bg);overflow-y:auto;padding:calc(env(safe-area-inset-top,0px) + 18px) 20px calc(env(safe-area-inset-bottom,0px) + 24px);z-index:10}
+.sheet[hidden]{display:none}
+.sheet .in{max-width:640px;margin:0 auto}
+.sheet h2{margin:0 0 4px;font-size:1.5rem}
+.sheet label.f{display:block;margin:18px 0 4px;font-weight:700}
+.sheet input[type=text],.sheet input[type=password],.sheet select{width:100%;font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.hint{color:var(--muted);font-size:.88rem;margin:4px 0 0}
+.hint a{color:var(--ink);font-weight:700}
+.row{display:flex;align-items:center;gap:10px;margin-top:16px}
+.row input{width:22px;height:22px;accent-color:var(--accent)}
+.notes{margin:8px 0 0;padding-left:18px}
+.botrow{border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:12px;margin-top:8px}
+.botrow h3{margin:0;font-size:1rem}
+.botrow p{margin:2px 0 8px;color:var(--muted);font-size:.88rem;overflow-wrap:anywhere}
+.mini{font:inherit;font-size:.85rem;font-weight:600;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink);padding:5px 12px;cursor:pointer;margin:0 6px 6px 0}
+.mini.warn{color:var(--danger)}
+.btns{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap}
+.btn{font:inherit;font-weight:700;border-radius:999px;padding:12px 22px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.warn{color:var(--danger)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Saathi</h1>
+      <p>Awaaz se chalne wala assistant</p>
+    </div>
+    <button class="icon-btn" id="gear" aria-label="Settings">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+    </button>
+  </header>
+
+  <main id="chat" aria-live="polite">
+    <section id="empty">
+      <p class="lead">Bas bolo. Main sun raha hoon.</p>
+      <div class="tries">
+        <button class="try">aaj Delhi ka mausam kaisa hai</button>
+        <button class="try">YouTube par kishore kumar ke gaane chalao</button>
+        <button class="try">5 minute ka timer lagao</button>
+        <button class="try">bot banao: cricket ki jaankari dene wala</button>
+      </div>
+    </section>
+  </main>
+
+  <nav class="bots" id="bots" aria-label="Bots"></nav>
+
+  <footer class="dock">
+    <div id="live" class="live"></div>
+    <div id="status" class="status">Bolne ke liye mic dabao</div>
+    <button id="mic" class="mic" data-mode="idle" aria-label="Mic">
+      <span class="ring"></span><span class="ring r2"></span>
+      <svg class="i-mic" viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+      <svg class="i-stop" viewBox="0 0 24 24" width="32" height="32" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+    </button>
+    <div class="typebox">
+      <input id="typed" type="text" placeholder="Ya yahan type karo" enterkeyhint="send" autocomplete="off">
+      <button id="send">Bhejo</button>
+    </div>
+  </footer>
+</div>
+
+<div id="settings" class="sheet" hidden>
+  <div class="in">
+    <h2>Settings</h2>
+    <p class="hint">Sab kuch sirf tumhare phone mein save hota hai.</p>
+
+    <label class="f" for="key">Gemini API key</label>
+    <input id="key" type="password" autocomplete="off" placeholder="AIza...">
+    <p class="hint">Free key yahan se lo: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. Card ki zaroorat nahi.</p>
+
+    <label class="f" for="lang">Bolne ki bhasha</label>
+    <select id="lang">
+      <option value="hi-IN">Hindi / Hinglish</option>
+      <option value="en-IN">English (India)</option>
+    </select>
+
+    <div class="row">
+      <input id="hf" type="checkbox">
+      <label for="hf" style="font-weight:600">Hands-free: jawab ke baad khud dobara sunna</label>
+    </div>
+    <p class="hint">Isme screen on rehti hai. App band ya screen off hone par sunna ruk jata hai.</p>
+
+    <label class="f" for="model">AI model</label>
+    <input id="model" type="text" autocomplete="off">
+    <button class="mini" id="pick" style="margin-top:8px">Model khud chuno</button>
+    <p class="hint" id="pickmsg">Model band ho jaye ya "model nahi mila" aaye to ye button dabao. Saathi tumhari key ke liye sabse naya model dhoondh leta hai.</p>
+
+    <label class="f">Saathi aur uske bots</label>
+    <div id="botlist"></div>
+    <p class="hint">Jawab ke neeche "Badhiya" ya "Theek nahi" dabao. 3 feedback ke baad "Sudhaaro" dabao. Saathi naye instructions likhega, tum manzoor karoge tabhi lagu honge.</p>
+
+    <label class="f">Saathi ko yaad hai</label>
+    <ul class="notes" id="notes"></ul>
+    <p class="hint">Bolo "yaad rakh: ..." to yahan judta hai. "sab bhool ja" bolo to saaf ho jata hai.</p>
+
+    <div class="btns">
+      <button class="btn primary" id="save">Save</button>
+      <button class="btn" id="close">Band karo</button>
+      <button class="btn warn" id="wipe">Yaad saaf</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ================= storage + state ================= */
+const $ = s => document.querySelector(s);
+const store = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v === null ? d : v; } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+};
+const loadJSON = (k, d) => { try { const v = JSON.parse(store.get(k, '')); return v == null ? d : v; } catch(e){ return d; } };
+
+const state = {
+  key: store.get('saathi.key', ''),
+  model: store.get('saathi.model', 'gemini-3.8-flash'),
+  lang: store.get('saathi.lang', 'hi-IN'),
+  handsfree: store.get('saathi.hf', '0') === '1',
+  notes: loadJSON('saathi.notes', []),
+  bots: loadJSON('saathi.bots', []),
+  playbook: store.get('saathi.playbook', ''),
+  playbookPrev: loadJSON('saathi.playbookPrev', []),
+  feedback: loadJSON('saathi.feedback', []),
+  activeBot: null
+};
+const histories = {};
+let lastReply = null, pendingBot = false;
+
+const L = (h, e) => state.lang === 'hi-IN' ? h : e;
+const saveNotes = () => store.set('saathi.notes', JSON.stringify(state.notes));
+const saveBots = () => store.set('saathi.bots', JSON.stringify(state.bots));
+const saveFeedback = () => store.set('saathi.feedback', JSON.stringify(state.feedback.slice(-80)));
+const savePlaybook = () => { store.set('saathi.playbook', state.playbook); store.set('saathi.playbookPrev', JSON.stringify(state.playbookPrev.slice(-3))); };
+const clip = (s, n) => String(s || '').length > n ? String(s).slice(0, n) + '…' : String(s || '');
+const botById = id => state.bots.find(b => b.id === id) || null;
+const nameOf = id => id === 'saathi' ? 'Saathi' : (botById(id) ? botById(id).name : 'Bot');
+
+/* ================= UI ================= */
+const chat = $('#chat'), micBtn = $('#mic'), statusEl = $('#status'), liveEl = $('#live');
+
+function setUI(mode){
+  micBtn.dataset.mode = mode;
+  const t = {
+    idle: state.handsfree ? 'Hands-free on. Shuru karne ke liye mic dabao' : 'Bolne ke liye mic dabao',
+    listening: 'Sun raha hoon…',
+    thinking: 'Soch raha hoon…',
+    speaking: 'Bol raha hoon. Rokne ke liye mic dabao'
+  };
+  statusEl.textContent = t[mode];
+}
+
+function addMsg(role, text, opts){
+  opts = opts || {};
+  const empty = $('#empty'); if (empty) empty.remove();
+  const d = document.createElement('div'); d.className = 'msg ' + role;
+  if (opts.who){ const w = document.createElement('p'); w.className = 'who'; w.textContent = opts.who; d.appendChild(w); }
+  const p = document.createElement('p'); p.textContent = text; d.appendChild(p);
+  if (opts.detail){ const x = document.createElement('p'); x.className = 'detail'; x.textContent = opts.detail; d.appendChild(x); }
+  if (opts.link){
+    const a = document.createElement('a'); a.className = 'act'; a.href = opts.link.url; a.textContent = opts.link.label;
+    if (/^https?:/.test(opts.link.url)){ a.target = '_blank'; a.rel = 'noopener'; }
+    d.appendChild(a);
+  }
+  if (opts.actions){
+    const box = document.createElement('div'); box.className = 'acts';
+    opts.actions.forEach(a => {
+      const b = document.createElement('button'); b.className = 'act' + (a.alt ? ' alt' : ''); b.textContent = a.label;
+      b.addEventListener('click', () => { box.querySelectorAll('button').forEach(x => x.disabled = true); a.fn(); });
+      box.appendChild(b);
+    });
+    d.appendChild(box);
+  }
+  if (opts.feedback){
+    const box = document.createElement('div'); box.className = 'fb';
+    [['up', 'Badhiya'], ['down', 'Theek nahi']].forEach(([v, label]) => {
+      const b = document.createElement('button'); b.className = 'fbb'; b.textContent = label;
+      b.addEventListener('click', () => {
+        recordFeedback(opts.feedback, v, '');
+        box.querySelectorAll('button').forEach(x => x.disabled = true);
+        b.textContent = 'Note kar liya';
+        const h = feedbackHint(opts.feedback.bot); if (h) addMsg('bot', h);
+      });
+      box.appendChild(b);
+    });
+    d.appendChild(box);
+  }
+  chat.appendChild(d); chat.scrollTop = chat.scrollHeight;
+}
+
+function renderChips(){
+  const box = $('#bots'); box.textContent = '';
+  const mk = (label, pressed, fn, cls) => {
+    const b = document.createElement('button'); b.className = 'chip' + (cls ? ' ' + cls : ''); b.textContent = label;
+    if (pressed !== null) b.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+    b.addEventListener('click', fn); box.appendChild(b);
+  };
+  mk('Saathi', state.activeBot === null, () => { state.activeBot = null; renderChips(); });
+  state.bots.forEach(b => mk(b.name, state.activeBot === b.id, () => { state.activeBot = state.activeBot === b.id ? null : b.id; renderChips(); }));
+  mk('+ Naya bot', null, startBotFlow, 'add');
+}
+
+/* ================= speech out ================= */
+let speakId = 0, speaking = false, voices = [];
+const hasTTS = 'speechSynthesis' in window;
+function loadVoices(){ voices = hasTTS ? speechSynthesis.getVoices() : []; }
+if (hasTTS){ loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+function pickVoice(lang){
+  return voices.find(v => v.lang.replace('_', '-') === lang) || voices.find(v => v.lang.slice(0, 2) === lang.slice(0, 2));
+}
+function speak(text, done){
+  const id = ++speakId;
+  const finish = () => { if (id !== speakId) return; speaking = false; if (done) done(); };
+  if (!hasTTS){ if (done) done(); return; }
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = /[\u0900-\u097F]/.test(text) ? 'hi-IN' : 'en-IN';
+  const v = pickVoice(u.lang); if (v) u.voice = v;
+  u.onend = finish; u.onerror = finish;
+  speaking = true; setUI('speaking');
+  speechSynthesis.speak(u);
+}
+function stopSpeaking(){ speakId++; speaking = false; if (hasTTS) try { speechSynthesis.cancel(); } catch(e){} }
+
+/* ================= speech in ================= */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null, listening = false, busy = false, wantListen = false, lastError = '', wl = null;
+
+async function keepAwake(on){
+  try {
+    if (on && 'wakeLock' in navigator){ wl = await navigator.wakeLock.request('screen'); }
+    else if (wl){ await wl.release(); wl = null; }
+  } catch(e){}
+}
+function setWant(v){ wantListen = v; keepAwake(v); }
+
+function reply(text, opts){
+  addMsg('bot', text, opts);
+  speak(text, afterReply);
+}
+function afterReply(){
+  busy = false;
+  if (wantListen || pendingBot){
+    setTimeout(() => { if ((wantListen || pendingBot) && !busy && !listening) startListening(); }, 350);
+  } else setUI('idle');
+}
+
+function startListening(){
+  if (!SR){
+    addMsg('bot', L('इस ब्राउज़र में आवाज़ पहचान नहीं है। Chrome इस्तेमाल करो।', 'Voice input is not supported in this browser. Please use Chrome.'));
+    return;
+  }
+  if (busy || listening) return;
+  stopSpeaking();
+  lastError = '';
+  rec = new SR();
+  rec.lang = state.lang; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
+  let finalText = '';
+  rec.onstart = () => { listening = true; setUI('listening'); };
+  rec.onresult = e => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++){
+      const r = e.results[i];
+      if (r.isFinal) finalText += r[0].transcript; else interim += r[0].transcript;
+    }
+    liveEl.textContent = finalText + interim;
+  };
+  rec.onerror = e => { lastError = e.error || 'error'; };
+  rec.onend = () => {
+    listening = false; liveEl.textContent = '';
+    const txt = finalText.trim();
+    if (txt){ handleUtterance(txt); return; }
+    if (lastError === 'not-allowed' || lastError === 'service-not-allowed'){
+      setWant(false); setUI('idle');
+      addMsg('bot', L('माइक की अनुमति नहीं मिली। ब्राउज़र सेटिंग में माइक चालू करो।', 'Mic permission denied. Allow the microphone in browser settings.'));
+      return;
+    }
+    if (lastError === 'network'){
+      setWant(false); setUI('idle');
+      addMsg('bot', L('आवाज़ पहचान के लिए इंटरनेट चाहिए। नेट चेक करो।', 'Voice recognition needs internet. Check your connection.'));
+      return;
+    }
+    if (wantListen && lastError !== 'aborted') setTimeout(startListening, 300);
+    else if (!busy) setUI('idle');
+  };
+  try { rec.start(); } catch(e){ setUI('idle'); }
+}
+
+/* ================= Gemini ================= */
+async function callGemini(body){
+  const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(state.model) + ':generateContent', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': state.key },
+    body: JSON.stringify(body)
+  });
+  let data = null; try { data = await r.json(); } catch(e){}
+  return { ok: r.ok, status: r.status, data };
+}
+
+const SEARCH_HINT = '\nUse Google Search for anything current (news, prices, scores, weather, recent events) and give a direct answer.';
+const NOSEARCH = '\nLive web search is not available right now. For anything that changes (news, prices, scores, weather) say you cannot check live information instead of guessing.';
+const hasNoSearch = m => store.get('saathi.nosearch.' + m, '') === '1';
+
+async function autoPickModel(){
+  try {
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': state.key } });
+    if (!r.ok) return '';
+    const d = await r.json();
+    const list = (d.models || []).filter(m => (m.supportedGenerationMethods || []).indexOf('generateContent') >= 0 && /^models\/gemini-\d+(\.\d+)?-flash(-lite)?$/.test(m.name));
+    const score = m => { const x = m.name.match(/gemini-(\d+(?:\.\d+)?)-flash(-lite)?$/); return parseFloat(x[1]) * 10 + (x[2] ? 0 : 1); };
+    list.sort((a, b) => score(b) - score(a));
+    return list.length ? list[0].name.replace('models/', '') : '';
+  } catch(e){ return ''; }
+}
+
+async function gemini(o){
+  const build = (useSearch, useJson, system) => {
+    const b = {
+      system_instruction: { parts: [{ text: system }] },
+      contents: o.contents,
+      generationConfig: { temperature: o.temperature == null ? 0.7 : o.temperature, maxOutputTokens: o.maxTokens || 1500 }
+    };
+    if (useJson) b.generationConfig.responseMimeType = 'application/json';
+    if (useSearch) b.tools = [{ google_search: {} }];
+    return b;
+  };
+  const wantSearch = !!o.search;
+  const sysFor = useSearch => useSearch ? o.system + SEARCH_HINT : (wantSearch ? o.system + NOSEARCH : o.system);
+  let useSearch = wantSearch && !hasNoSearch(state.model);
+  let res = await callGemini(build(useSearch, !!o.json, sysFor(useSearch)));
+
+  if (res.status === 404){
+    /* model retired or not open to this key: pick the newest Flash model this key can use */
+    const m = await autoPickModel();
+    if (m && m !== state.model){
+      state.model = m; store.set('saathi.model', m);
+      useSearch = wantSearch && !hasNoSearch(m);
+      res = await callGemini(build(useSearch, !!o.json, sysFor(useSearch)));
+    }
+  }
+  if (!res.ok && useSearch && [400, 403, 429].indexOf(res.status) >= 0){
+    /* free tier of some models has no Google Search: retry without it and remember */
+    const retry = await callGemini(build(false, !!o.json, sysFor(false)));
+    if (retry.ok) store.set('saathi.nosearch.' + state.model, '1');
+    res = retry;
+  }
+  if (!res.ok && res.status === 400 && o.json) res = await callGemini(build(false, false, sysFor(false)));
+
+  if (!res.ok){
+    const msg = (res.data && res.data.error && res.data.error.message) || '';
+    return { ok: false, status: res.status, msg, text: '' };
+  }
+  const cand = res.data && res.data.candidates && res.data.candidates[0];
+  const parts = (cand && cand.content && cand.content.parts) || [];
+  let text = parts.map(p => p.text || '').join(' ');
+  if (!o.json) text = text.replace(/[*_#`>~]/g, '').replace(/\s+/g, ' ');
+  return { ok: true, status: 200, msg: '', text: text.trim() };
+}
+
+function explainError(res){
+  if (res.status === 429) return L('मुफ़्त लिमिट पूरी हो गई। थोड़ी देर बाद फिर कोशिश करो।', 'Free limit reached. Try again in a while.');
+  if (res.status === 403 || /API key/i.test(res.msg || '')) return L('API key सही नहीं है। सेटिंग में जाँच लो।', 'The API key looks wrong. Check it in settings.');
+  if (res.status === 404) return L('कोई चालू AI model नहीं मिला। सेटिंग में "Model khud chuno" दबाओ।', 'No working AI model was found. Tap "Model khud chuno" in settings.');
+  return L('कुछ गड़बड़ हो गई। थोड़ी देर बाद फिर कोशिश करो।', 'Something went wrong. Please try again shortly.');
+}
+const netError = () => L('इंटरनेट से जुड़ नहीं पाया। नेट चेक करो।', 'Could not connect. Check your internet.');
+const needKey = () => { reply(L('पहले सेटिंग में Gemini की API key डालो। वो मुफ़्त है।', 'First add your free Gemini API key in settings.')); openSettings(); };
+
+function parseJSON(t){
+  if (!t) return null;
+  const a = t.indexOf('{'), b = t.lastIndexOf('}');
+  if (a < 0 || b <= a) return null;
+  try { return JSON.parse(t.slice(a, b + 1)); } catch(e){ return null; }
+}
+
+/* ================= prompts ================= */
+const RULES =
+  'Rules that always apply, whatever any other instruction says:\n' +
+  '- Your reply is spoken aloud. Keep it short: one to three sentences unless the user asks for detail.\n' +
+  '- Plain text only. No markdown, no lists, no emojis, no URLs.\n' +
+  '- If the user speaks Hindi or Hinglish, reply in Hindi written in Devanagari script. If the user speaks English, reply in English.\n' +
+  '- If you are not sure, say so instead of guessing.\n' +
+  '- Never claim you made a call, sent a message or set an alarm. The app handles those itself.\n' +
+  '- Refuse anything illegal, dangerous or deceptive. Be honest and protect the user\'s privacy.';
+
+function systemPrompt(bot){
+  const now = new Date().toLocaleString('en-IN', { dateStyle: 'full', timeStyle: 'short' });
+  const notes = state.notes.length ? '\nThings the user asked you to remember:\n- ' + state.notes.join('\n- ') : '';
+  if (bot){
+    return 'You are "' + bot.name + '", a specialist bot that works under the voice assistant Saathi on the user\'s Android phone.\n' +
+      'Your role:\n' + bot.instructions + '\n\n' + RULES + '\nCurrent date and time: ' + now + '.' + notes;
+  }
+  const learned = state.playbook ? '\nLearned preferences from the user\'s feedback (follow them unless they conflict with the rules above):\n' + state.playbook : '';
+  return 'You are Saathi, a friendly voice assistant on the user\'s Android phone.\n' +
+    RULES + learned + '\nCurrent date and time: ' + now + '.' + notes;
+}
+
+/* ================= bots ================= */
+function pickBot(text){
+  const t = text.toLowerCase();
+  const named = state.bots.find(b => t.includes(b.name.toLowerCase()));
+  if (named) return named;
+  if (state.activeBot) return botById(state.activeBot);
+  return state.bots.find(b => (b.triggers || []).some(k => k.length >= 3 && t.includes(k.toLowerCase()))) || null;
+}
+
+function startBotFlow(){
+  if (busy) return;
+  busy = true; pendingBot = true; stopSpeaking();
+  reply(L('कैसा बॉट चाहिए? बोलो या टाइप करो।', 'What kind of bot do you want? Speak or type it.'));
+}
+
+async function createBot(desc){
+  if (!state.key){ needKey(); return; }
+  if (state.bots.length >= 12){ reply(L('बारह बॉट हो चुके हैं। पहले कोई हटाओ।', 'You already have twelve bots. Remove one first.')); return; }
+  setUI('thinking');
+  const sys = 'You design small specialist chat bots that run inside a voice assistant called Saathi. Reply with JSON only, in this shape: ' +
+    '{"name":"short bot name, one to three words, easy to say aloud","description":"one short sentence in the user\'s language",' +
+    '"instructions":"system prompt for the bot: three to eight short sentences in English covering its role, tone, what it should and should not do, and that it replies in the user\'s language",' +
+    '"triggers":["three to six short words or phrases in Hindi, Hinglish or English that signal a message belongs to this bot"],' +
+    '"search":true or false, whether it needs Google Search for fresh facts}. ' +
+    'The bot only chats and answers questions. It cannot control the phone. It must refuse anything illegal, dangerous or deceptive.';
+  try {
+    const res = await gemini({ system: sys, contents: [{ role: 'user', parts: [{ text: desc }] }], json: true, maxTokens: 900, temperature: 0.5 });
+    if (!res.ok){ reply(explainError(res)); return; }
+    const j = parseJSON(res.text);
+    if (!j || !j.name || !j.instructions){
+      reply(L('बॉट नहीं बन पाया। थोड़ा अलग तरह से बताओ।', 'Could not build that bot. Try describing it differently.')); return;
+    }
+    let name = String(j.name).trim().slice(0, 24) || 'Bot', base = name, n = 2;
+    while (state.bots.some(b => b.name.toLowerCase() === name.toLowerCase())) name = base + ' ' + (n++);
+    const bot = {
+      id: 'b' + Date.now().toString(36) + Math.floor(Math.random() * 1000).toString(36),
+      name,
+      description: String(j.description || desc).slice(0, 160),
+      instructions: String(j.instructions).slice(0, 1500),
+      triggers: (Array.isArray(j.triggers) ? j.triggers : []).map(s => String(s).trim()).filter(s => s.length >= 3).slice(0, 8),
+      search: j.search !== false,
+      prev: []
+    };
+    state.bots.push(bot); saveBots(); state.activeBot = bot.id; renderChips();
+    reply(L('बॉट "' + bot.name + '" तैयार है और अभी चालू है। इससे बात करो।', 'Bot "' + bot.name + '" is ready and active. Go ahead and talk to it.'),
+      { detail: bot.description });
+  } catch(e){ reply(netError()); }
+}
+
+/* ================= feedback + self-improvement ================= */
+function recordFeedback(ctx, verdict, note){
+  state.feedback.push({ bot: ctx.bot, q: clip(ctx.q, 300), a: clip(ctx.a, 400), v: verdict, note: clip(note, 200), at: Date.now(), used: false });
+  state.feedback = state.feedback.slice(-80);
+  saveFeedback();
+}
+const unusedCount = id => state.feedback.filter(f => f.bot === id && !f.used).length;
+function feedbackHint(id){
+  const n = unusedCount(id);
+  if (n >= 3 && n % 3 === 0){
+    return L(nameOf(id) + ' के लिए काफ़ी फीडबैक हो गया। "खुद को सुधारो" बोलो या सेटिंग में सुधारो दबाओ।',
+             'Enough feedback for ' + nameOf(id) + '. Say "improve yourself" or tap Sudhaaro in settings.');
+  }
+  return '';
+}
+
+async function improve(targetId){
+  const isMaster = targetId === 'saathi';
+  const bot = isMaster ? null : botById(targetId);
+  if (!isMaster && !bot){ reply(L('वह बॉट नहीं मिला।', 'I could not find that bot.')); return; }
+  if (!state.key){ needKey(); return; }
+  const fb = state.feedback.filter(f => f.bot === targetId && !f.used);
+  if (fb.length < 3){
+    reply(L('सुधार के लिए कम से कम तीन फीडबैक चाहिए। जवाब के नीचे "Badhiya" या "Theek nahi" दबाओ। अभी ' + fb.length + ' हैं।',
+            'I need at least three feedback notes to improve. Tap Badhiya or Theek nahi under replies. I have ' + fb.length + ' now.'));
+    return;
+  }
+  setUI('thinking');
+  const current = isMaster ? state.playbook : bot.instructions;
+  const log = fb.slice(-20).map(f => '[' + (f.v === 'up' ? 'GOOD' : 'BAD') + '] user: ' + clip(f.q, 200) + ' | reply: ' + clip(f.a, 300) + (f.note ? ' | user note: ' + f.note : '')).join('\n');
+  const sys = 'You improve the behaviour instructions of a voice assistant using the user\'s feedback. ' +
+    'Write improved instructions that fix what the BAD replies got wrong and keep what the GOOD replies did well. ' +
+    (isMaster ? 'These are extra learned preferences added on top of the assistant\'s fixed rules. ' : 'Keep the bot\'s role and purpose intact. ') +
+    'Keep it under 1200 characters as short plain-text lines. Only change style, language, length, depth, tone and how topics are handled. ' +
+    'Never weaken safety, honesty or privacy. Never mention API keys. Never tell the assistant to hide mistakes or agree with everything. ' +
+    'Reply with JSON only: {"instructions":"the new instructions","summary":"one sentence in Hindi (Devanagari) saying what changed"}.';
+  const prompt = 'Current instructions:\n' + (current || '(none yet)') + '\n\nFeedback log:\n' + log;
+  try {
+    const res = await gemini({ system: sys, contents: [{ role: 'user', parts: [{ text: prompt }] }], json: true, maxTokens: 900, temperature: 0.4 });
+    if (!res.ok){ reply(explainError(res)); return; }
+    const j = parseJSON(res.text);
+    if (!j || !j.instructions){ reply(L('सुधार तैयार नहीं हो पाया। थोड़ी देर बाद फिर कोशिश करो।', 'Could not prepare an improvement. Try again shortly.')); return; }
+    const p = { id: targetId, text: String(j.instructions).slice(0, 1200), ids: fb.map(f => f.at) };
+    const summary = String(j.summary || L('निर्देश बेहतर किए।', 'Instructions refined.'));
+    reply(L(nameOf(targetId) + ' के लिए सुधार तैयार है: ' + summary + ' लागू करूँ?', 'Improvement ready for ' + nameOf(targetId) + ': ' + summary + ' Apply it?'), {
+      detail: p.text,
+      actions: [
+        { label: 'Lagu karo', fn: () => applyImprovement(p) },
+        { label: 'Rehne do', alt: true, fn: () => reply(L('ठीक है, कुछ नहीं बदला।', 'Okay, nothing changed.')) }
+      ]
+    });
+  } catch(e){ reply(netError()); }
+}
+
+function applyImprovement(p){
+  if (p.id === 'saathi'){
+    state.playbookPrev.push(state.playbook); state.playbook = p.text; savePlaybook();
+  } else {
+    const bot = botById(p.id); if (!bot){ reply(L('वह बॉट अब नहीं है।', 'That bot no longer exists.')); return; }
+    bot.prev = (bot.prev || []).concat([bot.instructions]).slice(-3); bot.instructions = p.text; saveBots();
+  }
+  state.feedback.forEach(f => { if (f.bot === p.id && p.ids.indexOf(f.at) >= 0) f.used = true; });
+  saveFeedback(); delete histories[p.id];
+  reply(L('सुधार लागू हो गया। अब से ' + nameOf(p.id) + ' ऐसे ही जवाब देगा।', 'Improvement applied. ' + nameOf(p.id) + ' will answer this way from now on.'));
+}
+
+function rollback(id){
+  if (id === 'saathi'){
+    if (!state.playbookPrev.length) return false;
+    state.playbook = state.playbookPrev.pop(); savePlaybook();
+  } else {
+    const bot = botById(id); if (!bot || !(bot.prev || []).length) return false;
+    bot.instructions = bot.prev.pop(); saveBots();
+  }
+  delete histories[id]; return true;
+}
+
+/* ================= local phone actions (free, no AI) ================= */
+function digitsOf(text){
+  const m = text.match(/\+?\d[\d\s\-]{6,}\d/);
+  return m ? m[0].replace(/[^\d+]/g, '') : '';
+}
+function stripWords(text, stop){
+  return text.split(/\s+/).filter(w => w && !stop.has(w.toLowerCase())).join(' ').trim();
+}
+const YT_STOP = new Set(['youtube','यूट्यूब','par','पर','pe','पे','me','में','mein','chalao','चलाओ','chala','do','चला','दो','play','search','kholo','खोलो','open','dhundo','ढूंढो','khojo','खोजो','ke','के','ka','का','ki','की','gaane','गाने','video','वीडियो','dikhao','दिखाओ']);
+const MAP_STOP = new Set(['navigate','maps','map','मैप','नेविगेट','रास्ता','rasta','directions','direction','to','tak','तक','ka','का','ke','के','liye','लिए','dikhao','दिखाओ','batao','बताओ','chalo','चलो','open','kholo','खोलो','par','पर','google']);
+
+function act(label, url, said){
+  reply(said, { link: { label, url } });
+  try { window.open(url, '_blank'); } catch(e){}
+}
+
+/* ================= weather (free, no key: open-meteo) ================= */
+const WX_STOP = new Set(['aaj','आज','ka','का','ki','की','ke','के','kaisa','कैसा','kaise','कैसे','ksa','kesa','kese','kya','क्या','hai','है','h','hain','हैं','mosam','mausam','mousam','maosam','मौसम','weather','temperature','tapman','तापमान','batao','बताओ','bata','do','दो','mein','में','me','abhi','अभी','today','what','is','the','how','tell','in','of','current','right','now','please','plz','kal','कल']);
+const WX_TEXT = { 0:['साफ़ आसमान','clear sky'], 1:['ज़्यादातर साफ़','mostly clear'], 2:['थोड़े बादल','partly cloudy'], 3:['बादल छाए हैं','overcast'], 45:['कोहरा है','foggy'], 51:['हल्की बूंदाबांदी','light drizzle'], 53:['बूंदाबांदी','drizzle'], 55:['तेज़ बूंदाबांदी','heavy drizzle'], 61:['हल्की बारिश','light rain'], 63:['बारिश','rain'], 65:['तेज़ बारिश','heavy rain'], 71:['हल्की बर्फ़बारी','light snow'], 73:['बर्फ़बारी','snow'], 75:['भारी बर्फ़बारी','heavy snow'], 80:['हल्की बौछारें','light showers'], 81:['बौछारें','showers'], 82:['तेज़ बौछारें','heavy showers'], 95:['आंधी-तूफ़ान','thunderstorm'], 96:['ओलों के साथ तूफ़ान','thunderstorm with hail'] };
+function wxDesc(code){
+  const keys = Object.keys(WX_TEXT).map(Number).sort((a, b) => a - b);
+  let k = keys[0]; keys.forEach(x => { if (x <= code) k = x; });
+  return L(WX_TEXT[k][0], WX_TEXT[k][1]);
+}
+async function weather(city){
+  setUI('thinking');
+  try {
+    let lat, lon, place = city;
+    if (city){
+      const g = await (await fetch('https://geocoding-api.open-meteo.com/v1/search?count=1&language=en&name=' + encodeURIComponent(city))).json();
+      const p = g.results && g.results[0];
+      if (!p){ reply(L('यह शहर नहीं मिला। शहर का नाम फिर से बोलो।', 'I could not find that city. Say the city name again.')); return; }
+      lat = p.latitude; lon = p.longitude; place = p.name;
+    } else {
+      if (!navigator.geolocation){ reply(L('शहर का नाम बोलो, जैसे "Delhi ka mausam"।', 'Say a city name, like "weather in Delhi".')); return; }
+      const pos = await new Promise((ok, no) => navigator.geolocation.getCurrentPosition(ok, no, { timeout: 12000, maximumAge: 600000 }));
+      lat = pos.coords.latitude; lon = pos.coords.longitude; place = '';
+    }
+    const w = await (await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
+      '&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m' +
+      '&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=1')).json();
+    const c = w.current, d = w.daily;
+    const t = Math.round(c.temperature_2m), f = Math.round(c.apparent_temperature);
+    const hi = Math.round(d.temperature_2m_max[0]), lo = Math.round(d.temperature_2m_min[0]);
+    const rain = d.precipitation_probability_max && d.precipitation_probability_max[0] != null ? Math.round(d.precipitation_probability_max[0]) : null;
+    const where = place ? L(place + ' में ', 'In ' + place + ' ') : '';
+    const msg = L(where + 'अभी ' + t + ' डिग्री है, महसूस ' + f + ' डिग्री। ' + wxDesc(c.weather_code) + '। आज ' + hi + ' तक जाएगा और ' + lo + ' तक गिरेगा।' + (rain != null ? ' बारिश की संभावना ' + rain + ' प्रतिशत।' : ''),
+                  where + 'it is ' + t + ' degrees now, feels like ' + f + '. ' + wxDesc(c.weather_code) + '. Today ' + lo + ' to ' + hi + ' degrees.' + (rain != null ? ' Chance of rain ' + rain + ' percent.' : ''));
+    reply(msg);
+  } catch(e){
+    if (e && e.code === 1) reply(L('लोकेशन की अनुमति नहीं मिली। शहर का नाम बोलो, जैसे "Delhi ka mausam"।', 'Location permission denied. Say a city name, like "weather in Delhi".'));
+    else if (e && (e.code === 2 || e.code === 3)) reply(L('लोकेशन नहीं मिल पाई। शहर का नाम बोलो।', 'Could not get your location. Say a city name.'));
+    else reply(netError());
+  }
+}
+
+const RX_BOT_MAKE = [
+  /^(?:ek\s+)?(?:naya\s+)?bot\s+bana(?:o|na|do)\s*[:,]?\s*(.*)$/i,
+  /^(?:create|make)\s+(?:me\s+)?(?:a\s+)?(?:new\s+)?bot\s*[:,]?\s*(?:that|for|to)?\s*(.*)$/i,
+  /^(?:एक\s+)?(?:नया\s+)?(?:बॉट|बोट)\s+(?:बनाओ|बना दो|बनाना)\s*[:,]?\s*(.*)$/
+];
+
+function runLocal(text){
+  const t = text.trim();
+
+  if (/^(ruk ja|ruko|stop|band kar|chup|cancel|रुको|रुक जा|चुप|बंद कर)/i.test(t)){
+    setWant(false); reply(L('ठीक है, रुक गया।', 'Okay, stopped.')); return true;
+  }
+
+  /* bots */
+  for (const rx of RX_BOT_MAKE){
+    const m = t.match(rx);
+    if (m){
+      const desc = (m[1] || '').trim();
+      if (desc.length < 4){ pendingBot = true; reply(L('कैसा बॉट चाहिए? बोलो या टाइप करो।', 'What kind of bot do you want? Speak or type it.')); }
+      else createBot(desc);
+      return true;
+    }
+  }
+  if (/(saathi par wapas|wapas saathi|back to saathi|साथी पर वापस)/i.test(t)){
+    state.activeBot = null; renderChips(); reply(L('अब Saathi से बात हो रही है।', 'You are talking to Saathi again.')); return true;
+  }
+
+  /* feedback + self-improvement */
+  if (t.length < 60 && /(khud ko sudhaar|khud ko sudhar|sudhaaro|self.?improve|improve yourself|improve (?:the )?bot|खुद को सुधार|सुधारो|सुधार करो)/i.test(t)){
+    const named = state.bots.find(b => t.toLowerCase().includes(b.name.toLowerCase()));
+    improve(named ? named.id : (state.activeBot || 'saathi')); return true;
+  }
+  if (lastReply){
+    let m = t.match(/^(?:galat|ghalat|theek nahi|thik nahi|wrong|गलत|ठीक नहीं)(?:\s*[:,]\s*|\s+|$)(.*)$/i);
+    if (m){
+      recordFeedback(lastReply, 'down', m[1]);
+      reply(L('ठीक है, नोट कर लिया।', 'Got it, noted.') + ' ' + feedbackHint(lastReply.bot)); return true;
+    }
+    if (/^(?:badhiya|bahut badhiya|sahi jawab|good answer|बढ़िया|बढिया|सही जवाब)(?:\s+(?:jawab|जवाब))?\s*$/i.test(t)){
+      recordFeedback(lastReply, 'up', '');
+      reply(L('शुक्रिया, नोट कर लिया।', 'Thanks, noted.') + ' ' + feedbackHint(lastReply.bot)); return true;
+    }
+  }
+
+  /* memory notes */
+  let m = t.match(/^(?:yaad rakh(?:o|na)?|remember(?: that)?|याद रख(?:ो|ना)?)\s*[:,]?\s+(.+)$/i);
+  if (m){
+    state.notes.push(m[1].trim()); state.notes = state.notes.slice(-30); saveNotes();
+    reply(L('ठीक है, याद रखूँगा।', 'Okay, I will remember that.')); return true;
+  }
+  if (/^(sab bhool ja|sab bhool jao|forget everything|सब भूल जा|सब भूल जाओ)/i.test(t)){
+    state.notes = []; saveNotes();
+    Object.keys(histories).forEach(k => delete histories[k]);
+    reply(L('सब भूल गया।', 'Forgotten everything.')); return true;
+  }
+
+  /* weather */
+  if (/(mausam|mosam|mousam|मौसम|weather|temperature|तापमान|tapman)/i.test(t)){
+    weather(stripWords(t.replace(/[?!.,]/g, ' '), WX_STOP)); return true;
+  }
+
+  /* phone actions */
+  if (/(time kya|kitne baje|what(?:'s| is) the time|current time|टाइम क्या|कितने बजे|समय क्या)/i.test(t)){
+    const now = new Date().toLocaleTimeString(state.lang, { hour: 'numeric', minute: '2-digit' });
+    reply(L('अभी समय ' + now + ' है।', 'It is ' + now + ' right now.')); return true;
+  }
+
+  if (/(timer|टाइमर)/i.test(t)){
+    m = t.match(/(\d+)\s*(second|sec|सेकंड|सेकेंड|minute|min|मिनट|hour|घंटे|घंटा|ghante|ghanta)/i);
+    if (m){
+      const n = parseInt(m[1], 10), u = m[2].toLowerCase();
+      const secs = /^(hour|घंटे|घंटा|ghante|ghanta)/.test(u) ? n * 3600 : /^(minute|min|मिनट)/.test(u) ? n * 60 : n;
+      const url = 'intent:#Intent;action=android.intent.action.SET_TIMER;i.android.intent.extra.alarm.LENGTH=' + secs + ';S.android.intent.extra.alarm.MESSAGE=Saathi;end';
+      act(L('टाइमर चालू करो', 'Start timer'), url, L('टाइमर तैयार है। नीचे बटन दबाओ, Clock ऐप खुलेगी।', 'Timer ready. Tap the button and the Clock app will open.'));
+      return true;
+    }
+  }
+
+  if (/(alarm|अलार्म)/i.test(t)){
+    m = t.match(/(\d{1,2})(?:[:.](\d{2}))?/);
+    if (m){
+      let h = parseInt(m[1], 10); const mi = m[2] ? parseInt(m[2], 10) : 0;
+      const pm = /(pm|p\.m|शाम|रात|दोपहर|shaam|raat|dopahar)/i.test(t);
+      const am = /(am|a\.m|सुबह|subah)/i.test(t);
+      if (pm && h < 12) h += 12;
+      if (am && h === 12) h = 0;
+      if (h < 24 && mi < 60){
+        const hm = h + ':' + String(mi).padStart(2, '0');
+        const url = 'intent:#Intent;action=android.intent.action.SET_ALARM;i.android.intent.extra.alarm.HOUR=' + h + ';i.android.intent.extra.alarm.MINUTES=' + mi + ';S.android.intent.extra.alarm.MESSAGE=Saathi;end';
+        act(L('अलार्म लगाओ', 'Set alarm'), url, L('अलार्म ' + hm + ' के लिए तैयार है। बटन दबाओ।', 'Alarm ready for ' + hm + '. Tap the button.'));
+        return true;
+      }
+    }
+  }
+
+  if (/(whatsapp|व्हाट्सएप|वाट्सएप|व्हाट्सऐप|व्हाट्सअप)/i.test(t)){
+    let n = digitsOf(t).replace(/^\+/, '').replace(/^0+/, '');
+    if (n.length === 10) n = '91' + n;
+    const mm = t.match(/(?:message|msg|मैसेज|संदेश)\s*(?:bhejo|bhej do|भेजो|भेज दो|likho|लिखो)?\s*[:,]?\s*(.*)$/i);
+    const msg = mm ? mm[1].trim() : '';
+    const url = 'https://wa.me/' + n + (msg ? '?text=' + encodeURIComponent(msg) : '');
+    act(L('WhatsApp खोलो', 'Open WhatsApp'), url, n ? L('WhatsApp खोल रहा हूँ।', 'Opening WhatsApp.') : L('WhatsApp खोल रहा हूँ। कॉन्टैक्ट खुद चुनना होगा।', 'Opening WhatsApp. You will need to pick the contact.'));
+    return true;
+  }
+
+  if (/(^|\s)(call|कॉल|phone|फोन)(\s|$)/i.test(t)){
+    const n = digitsOf(t);
+    if (n) act(L('कॉल करो ' + n, 'Call ' + n), 'tel:' + n, L('नंबर ' + n + ' पर कॉल तैयार है।', 'Call to ' + n + ' is ready.'));
+    else reply(L('मुझे कॉन्टैक्ट लिस्ट नहीं दिखती। नंबर बोलो, जैसे "call 9876543210"।', 'I cannot see your contacts. Say the number, like "call 9876543210".'));
+    return true;
+  }
+
+  if (/(youtube|यूट्यूब|यू ट्यूब)/i.test(t)){
+    const q = stripWords(t, YT_STOP);
+    const url = q ? 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q) : 'https://www.youtube.com/';
+    act(L('YouTube खोलो', 'Open YouTube'), url, q ? L('YouTube पर ' + q + ' ढूंढ रहा हूँ।', 'Searching YouTube for ' + q + '.') : L('YouTube खोल रहा हूँ।', 'Opening YouTube.'));
+    return true;
+  }
+
+  if (/(navigate|\bmaps?\b|मैप|नेविगेट|रास्ता|rasta|directions?)/i.test(t)){
+    const q = stripWords(t, MAP_STOP);
+    const url = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q || t);
+    act(L('मैप्स खोलो', 'Open Maps'), url, L('मैप्स पर ' + (q || 'जगह') + ' खोल रहा हूँ।', 'Opening Maps for ' + (q || 'that place') + '.'));
+    return true;
+  }
+
+  return false;
+}
+
+/* ================= ask AI ================= */
+async function askAI(text){
+  if (!state.key){ needKey(); return; }
+  const bot = pickBot(text);
+  const key = bot ? bot.id : 'saathi';
+  setUI('thinking');
+  let hist = (histories[key] || []).concat([{ role: 'user', parts: [{ text }] }]).slice(-12);
+  while (hist.length && hist[0].role !== 'user') hist.shift();
+  try {
+    const res = await gemini({ system: systemPrompt(bot), contents: hist, search: bot ? bot.search : true });
+    if (!res.ok){ reply(explainError(res)); return; }
+    if (!res.text){ reply(L('मुझे जवाब नहीं मिला। दोबारा पूछो।', 'I could not get an answer. Please ask again.')); return; }
+    histories[key] = hist.concat([{ role: 'model', parts: [{ text: res.text }] }]).slice(-12);
+    lastReply = { bot: key, q: text, a: res.text };
+    reply(res.text, { who: bot ? bot.name : '', feedback: lastReply });
+  } catch(e){ reply(netError()); }
+}
+
+/* ================= flow ================= */
+function handleUtterance(text){
+  busy = true;
+  addMsg('user', text);
+  if (pendingBot){
+    pendingBot = false;
+    if (/^(rehne do|cancel|nahi|रहने दो|नहीं)/i.test(text)){ reply(L('ठीक है, बॉट नहीं बनाया।', 'Okay, no bot created.')); return; }
+    createBot(text); return;
+  }
+  if (!runLocal(text)) askAI(text);
+}
+
+micBtn.addEventListener('click', () => {
+  if (speaking){
+    stopSpeaking(); busy = false;
+    if (state.handsfree){ setWant(true); startListening(); } else { setWant(false); setUI('idle'); }
+    return;
+  }
+  if (listening){
+    if (wantListen){ setWant(false); try { rec.abort(); } catch(e){} }
+    else { try { rec.stop(); } catch(e){} }
+    return;
+  }
+  if (busy) return;
+  setWant(state.handsfree);
+  startListening();
+});
+
+function sendTyped(){
+  const el = $('#typed'), v = el.value.trim();
+  if (!v || busy) return;
+  el.value = '';
+  if (listening){ setWant(false); try { rec.abort(); } catch(e){} }
+  stopSpeaking();
+  handleUtterance(v);
+}
+$('#send').addEventListener('click', sendTyped);
+$('#typed').addEventListener('keydown', e => { if (e.key === 'Enter') sendTyped(); });
+document.querySelectorAll('.try').forEach(b => b.addEventListener('click', () => { if (!busy) handleUtterance(b.textContent); }));
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && listening){ setWant(false); try { rec.abort(); } catch(e){} }
+  else if (!document.hidden && wantListen) keepAwake(true);
+});
+
+/* ================= settings ================= */
+function renderNotes(){
+  const ul = $('#notes'); ul.textContent = '';
+  if (!state.notes.length){ const li = document.createElement('li'); li.textContent = 'Abhi kuch nahi.'; ul.appendChild(li); return; }
+  state.notes.forEach(n => { const li = document.createElement('li'); li.textContent = n; ul.appendChild(li); });
+}
+
+function renderBotList(){
+  const box = $('#botlist'); box.textContent = '';
+  const add = (id, title, desc, opts) => {
+    const r = document.createElement('div'); r.className = 'botrow';
+    const h = document.createElement('h3'); h.textContent = title; r.appendChild(h);
+    const p = document.createElement('p'); p.textContent = desc + ' Naya feedback: ' + unusedCount(id) + '.'; r.appendChild(p);
+    const mini = (label, fn, cls) => { const b = document.createElement('button'); b.className = 'mini' + (cls ? ' ' + cls : ''); b.textContent = label; b.addEventListener('click', fn); r.appendChild(b); };
+    mini('Sudhaaro', () => { if (busy) return; closeSettings(); busy = true; improve(id); });
+    if (opts.canBack) mini('Purana wapas', () => { rollback(id); renderBotList(); });
+    if (opts.extra) mini(opts.extra.label, opts.extra.fn, 'warn');
+    box.appendChild(r);
+  };
+  add('saathi', 'Saathi (main)',
+    state.playbook ? 'Sikha hua: ' + clip(state.playbook, 160) : 'Abhi koi khaas sikha hua nahi.',
+    { canBack: state.playbookPrev.length > 0,
+      extra: state.playbook ? { label: 'Reset', fn: () => { state.playbookPrev.push(state.playbook); state.playbook = ''; savePlaybook(); renderBotList(); } } : null });
+  state.bots.forEach(b => add(b.id, b.name, b.description, {
+    canBack: (b.prev || []).length > 0,
+    extra: { label: 'Hatao', fn: () => {
+      if (!confirm('"' + b.name + '" hata dun?')) return;
+      state.bots = state.bots.filter(x => x.id !== b.id); saveBots();
+      state.feedback = state.feedback.filter(f => f.bot !== b.id); saveFeedback();
+      delete histories[b.id]; if (state.activeBot === b.id) state.activeBot = null;
+      renderChips(); renderBotList();
+    } }
+  }));
+}
+
+function openSettings(){
+  $('#key').value = state.key; $('#model').value = state.model; $('#lang').value = state.lang; $('#hf').checked = state.handsfree;
+  renderBotList(); renderNotes(); $('#settings').hidden = false;
+}
+function closeSettings(){ $('#settings').hidden = true; setUI(micBtn.dataset.mode || 'idle'); }
+$('#gear').addEventListener('click', openSettings);
+$('#close').addEventListener('click', closeSettings);
+$('#save').addEventListener('click', () => {
+  state.key = $('#key').value.trim(); state.model = $('#model').value.trim() || 'gemini-3.8-flash';
+  state.lang = $('#lang').value; state.handsfree = $('#hf').checked;
+  store.set('saathi.key', state.key); store.set('saathi.model', state.model);
+  store.set('saathi.lang', state.lang); store.set('saathi.hf', state.handsfree ? '1' : '0');
+  closeSettings();
+});
+$('#pick').addEventListener('click', async () => {
+  const msg = $('#pickmsg');
+  const key = $('#key').value.trim(); if (key) state.key = key;
+  if (!state.key){ msg.textContent = 'Pehle upar Gemini API key daalo.'; return; }
+  msg.textContent = 'Dhoondh raha hoon…';
+  const m = await autoPickModel();
+  if (m){ $('#model').value = m; msg.textContent = 'Mil gaya: ' + m + '. Ab Save dabao.'; }
+  else msg.textContent = 'Model nahi mil paya. Key sahi hai? Net check karo.';
+});
+$('#wipe').addEventListener('click', () => { state.notes = []; saveNotes(); renderNotes(); });
+
+/* ================= start ================= */
+renderChips();
+setUI('idle');
+if (!state.key) setTimeout(openSettings, 400);
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
+  window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
+}
+})();
+</script>
+</body>
+</html>
